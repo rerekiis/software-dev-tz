@@ -1,0 +1,124 @@
+@baseUrl = http://localhost:8000
+@managerId = 1
+@companyId = 1
+@meetingId = 1
+
+### Проверка сервиса
+GET {{baseUrl}}/health
+
+### Список менеджеров (два менеджера создаются сидом)
+GET {{baseUrl}}/managers
+
+### Создать компанию
+POST {{baseUrl}}/companies
+Content-Type: application/json
+
+{
+  "name": "ТОО Ромашка",
+  "bin": "123456789012",
+  "phone": "+7 777 123 45 67"
+}
+
+### Список компаний с фильтром и пагинацией
+GET {{baseUrl}}/companies?status=new&limit=20&offset=0
+
+### Создать встречу: понедельник 10:00 Almaty = 05:00 UTC
+POST {{baseUrl}}/meetings
+Content-Type: application/json
+
+{
+  "company_id": {{companyId}},
+  "manager_id": {{managerId}},
+  "start_time": "2027-03-15T05:00:00Z"
+}
+
+### Конфликт с менеджером: 10:30 Almaty = 05:30 UTC -> 409
+POST {{baseUrl}}/meetings
+Content-Type: application/json
+
+{
+  "company_id": 2,
+  "manager_id": {{managerId}},
+  "start_time": "2027-03-15T05:30:00Z"
+}
+
+### Граница рабочего дня: 17:30 Almaty = 12:30 UTC -> 422
+POST {{baseUrl}}/meetings
+Content-Type: application/json
+
+{
+  "company_id": {{companyId}},
+  "manager_id": 2,
+  "start_time": "2027-03-15T12:30:00Z"
+}
+
+### Выходной день: суббота -> 422
+POST {{baseUrl}}/meetings
+Content-Type: application/json
+
+{
+  "company_id": {{companyId}},
+  "manager_id": {{managerId}},
+  "start_time": "2027-03-20T05:00:00Z"
+}
+
+### Звонок meeting_set без встречи -> 422
+POST {{baseUrl}}/calls
+Content-Type: application/json
+
+{
+  "company_id": {{companyId}},
+  "result": "meeting_set"
+}
+
+### Звонок meeting_set с существующей встречей -> 201
+POST {{baseUrl}}/calls
+Content-Type: application/json
+
+{
+  "company_id": {{companyId}},
+  "result": "meeting_set",
+  "meeting_id": {{meetingId}},
+  "comment": "Клиент подтвердил встречу"
+}
+
+### Звонок с отказом -> 201
+POST {{baseUrl}}/calls
+Content-Type: application/json
+
+{
+  "company_id": 2,
+  "result": "refused",
+  "comment": "Не интересует"
+}
+
+### Звонок без ответа -> 201
+POST {{baseUrl}}/calls
+Content-Type: application/json
+
+{
+  "company_id": 2,
+  "result": "no_answer"
+}
+
+### Перенести встречу на 14:00 Almaty = 09:00 UTC
+PATCH {{baseUrl}}/meetings/{{meetingId}}
+Content-Type: application/json
+
+{
+  "start_time": "2027-03-15T09:00:00Z"
+}
+
+### История встречи: original_start_time и events
+GET {{baseUrl}}/meetings/{{meetingId}}
+
+### Отменить встречу
+PATCH {{baseUrl}}/meetings/{{meetingId}}
+Content-Type: application/json
+
+{
+  "status": "cancelled"
+}
+
+### Расписание менеджера на день
+GET {{baseUrl}}/managers/{{managerId}}/schedule?date=2027-03-15
