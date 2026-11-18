@@ -17,7 +17,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DIR}/test.db"
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
 
-from app.database import SessionLocal, engine, init_db  # noqa: E402
+from app.database import SessionLocal, engine, run_migrations  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Meeting, utcnow  # noqa: E402
 
@@ -34,9 +34,16 @@ _bin_counter = 0
 @pytest.fixture()
 def client():
     with engine.begin() as connection:
-        for table in ("meeting_events", "calls", "meetings", "companies", "managers"):
+        for table in (
+            "meeting_events",
+            "calls",
+            "meetings",
+            "companies",
+            "managers",
+            "alembic_version",
+        ):
             connection.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
-    init_db()
+    run_migrations()
     with TestClient(app) as test_client:
         yield test_client
 

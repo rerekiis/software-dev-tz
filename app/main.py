@@ -1,7 +1,6 @@
 """Точка входа FastAPI: REST API учёта звонков и назначения встреч."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from datetime import date as date_type
 
 from fastapi import Depends, FastAPI, Query, Request, status
@@ -10,13 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from . import crud, schemas
-from .database import get_db, init_db
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    init_db()
-    yield
+from .database import get_db
 
 
 app = FastAPI(
@@ -27,7 +20,6 @@ app = FastAPI(
         "Входные и выходные моменты времени — UTC (ISO 8601), "
         "рабочие часы проверяются по Asia/Almaty (пн–пт, 09:00–18:00)."
     ),
-    lifespan=lifespan,
 )
 
 

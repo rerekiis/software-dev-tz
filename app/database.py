@@ -1,15 +1,18 @@
-"""Настройка подключения к SQLite и инициализация схемы из SQL-миграции."""
+"""Настройка подключения к SQLite и запуск миграций Alembic."""
 from __future__ import annotations
 
 import os
 import sqlite3
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-MIGRATION_PATH = BASE_DIR / "migrations" / "001_init.sql"
+ALEMBIC_INI_PATH = BASE_DIR / "alembic.ini"
+ALEMBIC_DIR = BASE_DIR / "alembic"
 
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'crm.db'}")
 
@@ -44,15 +47,12 @@ SessionLocal = sessionmaker(
 )
 
 
-def init_db() -> None:
-    """Создаёт схему (идемпотентно) и добавляет менеджеров-сидов."""
-    sql = MIGRATION_PATH.read_text(encoding="utf-8")
-    raw_connection = engine.raw_connection()
-    try:
-        raw_connection.executescript(sql)
-        raw_connection.commit()
-    finally:
-        raw_connection.close()
+def run_migrations() -> None:
+    """Применяет все миграции Alembic до head (alembic upgrade head)."""
+    config = Config(str(ALEMBIC_INI_PATH))
+    config.set_main_option("script_location", str(ALEMBIC_DIR).replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
+    command.upgrade(config, "head")
 
 
 def get_db():

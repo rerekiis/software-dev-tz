@@ -7,6 +7,7 @@ REST API на FastAPI + SQLite для отдела продаж: компани�
 
 - Python 3.12, FastAPI, Pydantic v2
 - SQLite + SQLAlchemy 2.0
+- Alembic (миграции)
 - pytest + httpx (тесты)
 
 ## Запуск одной командой
@@ -23,8 +24,12 @@ docker compose up --build
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+.venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload
 ```
+
+Миграции также применяются автоматически в Docker-контейнере перед стартом
+uvicorn.
 
 ### Тесты
 
@@ -43,13 +48,17 @@ software-dev-tz/
 │   ├── main.py          # FastAPI-приложение и эндпоинты
 │   ├── models.py        # SQLAlchemy-модели и UTC-тип
 │   ├── schemas.py       # Pydantic-схемы и валидация рабочего времени
-│   ├── database.py      # подключение к SQLite, init_db
+│   ├── database.py      # подключение к SQLite, запуск Alembic
 │   └── crud.py          # бизнес-логика, транзакции, конфликты
 ├── tests/
 │   ├── __init__.py
 │   └── test_api.py      # 10 автотестов
-├── migrations/
-│   └── 001_init.sql     # схема, индексы, триггеры, сиды
+├── alembic/
+│   ├── env.py           # метаданные моделей и DATABASE_URL
+│   ├── script.py.mako
+│   └── versions/
+│       └── c40cb9c90061_initial_schema.py  # схема, триггеры, сиды
+├── alembic.ini
 ├── examples/
 │   └── requests.http    # примеры запросов (REST Client)
 ├── Dockerfile
@@ -59,9 +68,31 @@ software-dev-tz/
 └── README.md
 ```
 
-Схема БД создаётся идемпотентно из `migrations/001_init.sql` при старте
-приложения. Там же создаются два менеджера: `id=1` «Айгерим Смагулова»,
-`id=2` «Данияр Ахметов».
+Схема создаётся миграциями Alembic из `alembic/versions/`. Начальная ревизия
+создаёт таблицы, индексы, CHECK-ограничения, триггеры целостности и двух
+менеджеров: `id=1` «Айгерим Смагулова», `id=2` «Данияр Ахметов».
+
+## Миграции
+
+```bash
+alembic upgrade head      # применить все миграции
+alembic current           # текущая ревизия
+alembic downgrade -1      # откатить одну ревизию
+alembic downgrade base    # откатить всё
+```
+
+Новая миграция после изменения `app/models.py`:
+
+```bash
+alembic revision --autogenerate -m "add something"
+alembic upgrade head
+```
+
+`alembic/env.py` берёт `DATABASE_URL` из `app/database.py` (по умолчанию
+`sqlite:///./crm.db`), поэтому CLI и приложение работают с одной БД.
+URL можно переопределить переменной окружения `DATABASE_URL`.
+Сгенерированную ревизию нужно просмотреть вручную: триггеры и сиды
+autogenerate не создаёт.
 
 ## Эндпоинты
 
