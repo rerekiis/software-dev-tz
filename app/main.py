@@ -1,6 +1,8 @@
 """Точка входа FastAPI: REST API учёта звонков и назначения встреч."""
 from __future__ import annotations
 
+import os
+from contextlib import asynccontextmanager
 from datetime import date as date_type
 
 from fastapi import Depends, FastAPI, Query, Request, status
@@ -9,7 +11,21 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from . import crud, schemas
-from .database import get_db
+from .database import get_db, run_migrations
+from .seed import seed_demo_data
+
+
+def _is_enabled(value: str) -> bool:
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Применяет миграции и при необходимости наполняет БД демо-данными."""
+    run_migrations()
+    if _is_enabled(os.getenv("SEED_DEMO_DATA", "1")):
+        seed_demo_data()
+    yield
 
 
 app = FastAPI(
@@ -20,6 +36,7 @@ app = FastAPI(
         "Входные и выходные моменты времени — UTC (ISO 8601), "
         "рабочие часы проверяются по Asia/Almaty (пн–пт, 09:00–18:00)."
     ),
+    lifespan=lifespan,
 )
 
 

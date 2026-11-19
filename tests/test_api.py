@@ -13,6 +13,8 @@ import pytest
 # Отдельная БД для тестов должна быть выбрана до импорта приложения.
 _TMP_DIR = tempfile.mkdtemp(prefix="crm-tests-")
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DIR}/test.db"
+# Тестам нужна чистая БД: автонаполнение демо-данными отключено.
+os.environ["SEED_DEMO_DATA"] = "0"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
